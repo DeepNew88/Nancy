@@ -3,6 +3,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# ✅ GLOBAL VARIABLES (IMPORTANT)
+API_URL = getenv("API_URL") or "https://beta.fallenapi.fun"
+API_KEY = getenv("API_KEY")
+
+
 class Config:
     def __init__(self):
         self.API_ID = int(getenv("API_ID", 0))
@@ -10,13 +15,6 @@ class Config:
 
         self.BOT_TOKEN = getenv("BOT_TOKEN")
         self.MONGO_URL = getenv("MONGO_URL")
-
-        # API URL - here
-        API_URL = getenv("API_URL", "https://beta.fallenapi.fun")
-
-        # API KEY - here
-        API_KEY = getenv("API_KEY", None) #for 
-        DOWNLOADS_DIR = "downloads"
 
         self.LOGGER_ID = int(getenv("LOGGER_ID", 0))
         self.OWNER_ID = int(getenv("OWNER_ID", 0))
