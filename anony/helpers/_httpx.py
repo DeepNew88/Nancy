@@ -1,6 +1,3 @@
-#  Copyright (c) 2025
-#  Production Safe Httpx Client for API-based Downloads
-
 import asyncio
 import re
 import time
@@ -14,7 +11,7 @@ import aiofiles
 import httpx
 
 from config import DOWNLOADS_DIR, API_URL, API_KEY
-from AnonXMusic.logging import LOGGER
+from anony import logger
 
 
 @dataclass
@@ -31,37 +28,26 @@ class HttpxClient:
     MAX_RETRIES = 2
     BACKOFF_FACTOR = 1.0
 
-    def __init__(
-        self,
-        timeout: int = DEFAULT_TIMEOUT,
-        download_timeout: int = DEFAULT_DOWNLOAD_TIMEOUT,
-        max_redirects: int = 5,
-    ) -> None:
-        self._timeout = timeout
-        self._download_timeout = download_timeout
-
+    def __init__(self):
         self._session = httpx.AsyncClient(
             timeout=httpx.Timeout(
-                connect=timeout,
-                read=timeout,
-                write=timeout,
-                pool=timeout,
+                connect=self.DEFAULT_TIMEOUT,
+                read=self.DEFAULT_TIMEOUT,
+                write=self.DEFAULT_TIMEOUT,
+                pool=self.DEFAULT_TIMEOUT,
             ),
             follow_redirects=True,
-            max_redirects=max_redirects,
         )
 
-    async def close(self) -> None:
+    async def close(self):
         try:
             await self._session.aclose()
         except Exception as e:
-            LOGGER(__name__).error("Error closing HTTP session: %s", repr(e))
+            logger.error("Error closing HTTP session: %s", repr(e))
 
-    # ==========================================
-    # 🔐 Auto API Key Header Injection
-    # ==========================================
+    # 🔐 Auto API key header
     @staticmethod
-    def _get_headers(url: str, base_headers: dict[str, str]) -> dict[str, str]:
+    def _get_headers(url: str, base_headers: dict[str, str]):
         headers = base_headers.copy()
 
         if API_URL and API_KEY and url.startswith(API_URL):
@@ -71,82 +57,36 @@ class HttpxClient:
 
         return headers
 
-    # ==========================================
-    # 🌐 JSON Request (API Call)
-    # ==========================================
-    async def make_request(
-        self,
-        url: str,
-        max_retries: int = MAX_RETRIES,
-        backoff_factor: float = BACKOFF_FACTOR,
-        **kwargs: Any,
-    ) -> Optional[dict[str, Any]]:
-
-        if not url:
-            LOGGER(__name__).warning("Empty URL provided")
-            return None
-
+    # 🌐 API JSON request
+    async def make_request(self, url: str, **kwargs) -> Optional[dict]:
         headers = self._get_headers(url, kwargs.pop("headers", {}))
 
-        for attempt in range(max_retries):
+        for attempt in range(self.MAX_RETRIES):
             try:
-                start = time.monotonic()
                 response = await self._session.get(url, headers=headers, **kwargs)
                 response.raise_for_status()
-                duration = time.monotonic() - start
-
-                LOGGER(__name__).debug(
-                    "Request to %s succeeded in %.2fs", url, duration
-                )
-
                 return response.json()
+            except Exception as e:
+                logger.warning("API request failed (%s): %s", attempt + 1, e)
+                await asyncio.sleep(self.BACKOFF_FACTOR * (2 ** attempt))
 
-            except httpx.HTTPStatusError as e:
-                LOGGER(__name__).warning(
-                    "HTTP %s error for %s: %s",
-                    e.response.status_code,
-                    url,
-                    e.response.text,
-                )
-
-            except httpx.RequestError as e:
-                LOGGER(__name__).warning(
-                    "Request failed for %s: %s", url, repr(e)
-                )
-
-            except ValueError:
-                LOGGER(__name__).error(
-                    "Invalid JSON response from %s", url
-                )
-                return None
-
-            await asyncio.sleep(backoff_factor * (2 ** attempt))
-
-        LOGGER(__name__).error("All retries failed for URL: %s", url)
+        logger.error("All retries failed for %s", url)
         return None
 
-    # ==========================================
-    # 📥 File Download (Streaming)
-    # ==========================================
+    # 📥 File download
     async def download_file(
         self,
         url: str,
         file_path: Optional[Union[str, Path]] = None,
         overwrite: bool = False,
-        **kwargs: Any,
+        **kwargs,
     ) -> DownloadResult:
-
-        if not url:
-            return DownloadResult(False, error="Empty URL provided")
 
         headers = self._get_headers(url, kwargs.pop("headers", {}))
 
         try:
             async with self._session.stream(
-                "GET",
-                url,
-                timeout=self._download_timeout,
-                headers=headers,
+                "GET", url, timeout=self.DEFAULT_DOWNLOAD_TIMEOUT, headers=headers
             ) as response:
 
                 response.raise_for_status()
@@ -174,11 +114,8 @@ class HttpxClient:
                     async for chunk in response.aiter_bytes(self.CHUNK_SIZE):
                         await f.write(chunk)
 
-                LOGGER(__name__).debug("Downloaded file to %s", path)
-
                 return DownloadResult(True, file_path=path)
 
         except Exception as e:
-            error_msg = f"Download failed for {url}: {repr(e)}"
-            LOGGER(__name__).error(error_msg)
-            return DownloadResult(False, error=error_msg)
+            logger.error("Download failed: %s", e)
+            return DownloadResult(False, error=str(e))
