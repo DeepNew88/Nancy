@@ -53,100 +53,94 @@ class Thumbnail:
 
             width, height = 1280, 720
 
-            # ===== BACKGROUND =====
+            # ===== PREMIUM DARK BLUR BACKGROUND =====
             bg = thumb.resize((width, height), Image.Resampling.LANCZOS)
-            bg = bg.filter(ImageFilter.GaussianBlur(75))
-            bg = ImageEnhance.Brightness(bg).enhance(0.65)
+            bg = bg.filter(ImageFilter.GaussianBlur(90))
+            bg = ImageEnhance.Brightness(bg).enhance(0.45)
 
-            tint = Image.new("RGBA", (width, height), (30, 20, 20, 120))
-            bg = Image.alpha_composite(bg.convert("RGBA"), tint)
+            dark_overlay = Image.new("RGBA", (width, height), (0, 0, 0, 160))
+            bg = Image.alpha_composite(bg.convert("RGBA"), dark_overlay)
 
-            # ===== PANEL SIZE =====
-            panel_w, panel_h = 980, 600
-            panel_x = (width - panel_w) // 2
-            panel_y = (height - panel_h) // 2
+            # ===== SAME PANEL FRAME AS OLD CODE =====
+            panel_x, panel_y = 305, 125
+            panel_w = 975 - 305
+            panel_h = 595 - 125
 
-            # ===== SHADOW =====
+            # ===== PREMIUM SHADOW =====
             shadow = Image.new("RGBA", (panel_w, panel_h), (0, 0, 0, 255))
-            shadow_mask = Image.new("L", (panel_w, panel_h), 0)
-            ImageDraw.Draw(shadow_mask).rounded_rectangle(
-                (0, 0, panel_w, panel_h),
-                radius=70,
-                fill=255
-            )
-            shadow.putalpha(shadow_mask)
-            bg.paste(shadow, (panel_x + 35, panel_y + 50), shadow)
+            shadow = shadow.filter(ImageFilter.GaussianBlur(40))
+            bg.paste(shadow, (panel_x + 15, panel_y + 25), shadow)
 
             # ===== GLASS PANEL =====
-            glass = Image.new("RGBA", (panel_w, panel_h), (40, 40, 40, 155))
+            glass = Image.new("RGBA", (panel_w, panel_h), (35, 35, 35, 200))
             mask = Image.new("L", (panel_w, panel_h), 0)
             ImageDraw.Draw(mask).rounded_rectangle(
                 (0, 0, panel_w, panel_h),
-                radius=70,
-                fill=255
+                radius=30,
+                fill=255,
             )
             glass.putalpha(mask)
             bg.paste(glass, (panel_x, panel_y), glass)
 
             draw = ImageDraw.Draw(bg)
 
-            # ===== COVER =====
+            # ===== COVER (SAME SIZE AS OLD) =====
             cover = ImageOps.fit(
-                thumb, (260, 260), Image.Resampling.LANCZOS
+                thumb, (184, 184), Image.Resampling.LANCZOS
             )
 
-            cover_mask = Image.new("L", (260, 260), 0)
+            cover_mask = Image.new("L", (184, 184), 0)
             ImageDraw.Draw(cover_mask).rounded_rectangle(
-                (0, 0, 260, 260), radius=45, fill=255
+                (0, 0, 184, 184), radius=20, fill=255
             )
             cover.putalpha(cover_mask)
 
-            bg.paste(cover, (panel_x + 90, panel_y + 150), cover)
+            bg.paste(cover, (325, 155), cover)
 
-            # ===== TEXT =====
+            # ===== TEXT (SAME POSITION) =====
             title = (song.title or "Unknown Title")[:45]
             artist = (song.channel_name or "Unknown Artist")[:40]
 
             draw.text(
-                (panel_x + 460, panel_y + 170),
+                (540, 155),
                 title,
                 fill="white",
                 font=FONTS["title"],
             )
 
             draw.text(
-                (panel_x + 460, panel_y + 230),
+                (540, 200),
                 artist,
                 fill=(210, 210, 210),
                 font=FONTS["artist"],
             )
 
-            # ===== CONTROLS =====
+            # ===== CONTROLS (SAME POSITION) =====
             try:
                 controls = Image.open("anony/assets/controls.png").convert("RGBA")
-                controls = controls.resize((740, 210), Image.Resampling.LANCZOS)
+                controls = controls.resize((600, 160), Image.Resampling.LANCZOS)
 
                 bg.paste(
                     controls,
-                    (panel_x + 160, panel_y + 360),
-                    controls
+                    (335, 415),
+                    controls,
                 )
             except:
                 pass
 
-            # ===== VOLUME BAR =====
-            vol_y = panel_y + 560
+            # ===== VOLUME BAR (SAME POSITION) =====
+            vol_y = 560
 
             draw.line(
-                [(panel_x + 220, vol_y),
-                 (panel_x + 940, vol_y)],
+                [(525, vol_y),
+                 (940, vol_y)],
                 fill=(150, 150, 150),
                 width=6,
             )
 
             draw.line(
-                [(panel_x + 220, vol_y),
-                 (panel_x + 560, vol_y)],
+                [(525, vol_y),
+                 (750, vol_y)],
                 fill=(230, 230, 230),
                 width=6,
             )
