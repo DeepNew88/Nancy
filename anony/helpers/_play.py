@@ -2,7 +2,6 @@
 # Licensed under the MIT License.
 # This file is part of AnonXMusic
 
-
 import asyncio
 
 from pyrogram import enums, errors, types
@@ -17,7 +16,34 @@ def checkUB(play):
             return await m.reply_text(m.lang["play_user_invalid"])
 
         chat_id = m.chat.id
-        if m.chat.type != enums.ChatType.SUPERGROUP:
+
+        # ===== GET DB DELETE FLAG =====
+        try:
+            delete_flag = await db.get_cmd_delete(chat_id)
+        except Exception:
+            delete_flag = False
+
+        # ===== FORCE DELETE ALL PLAY COMMANDS =====
+        try:
+            if m.text:
+                cmd = m.text.split()[0].lower()
+
+                if (
+                    cmd.startswith("/play")
+                    or cmd.startswith("/vplay")
+                ):
+                    await m.delete()
+        except Exception:
+            pass
+
+        # ===== ORIGINAL DB DELETE SYSTEM (UNCHANGED) =====
+        try:
+            if delete_flag:
+                await m.delete()
+        except Exception:
+            pass
+
+        if m.chat.type not in [enums.ChatType.SUPERGROUP, enums.ChatType.GROUP]:
             await m.reply_text(m.lang["play_chat_invalid"])
             return await app.leave_chat(chat_id)
 
@@ -27,7 +53,9 @@ def checkUB(play):
             return await m.reply_text(m.lang["play_usage"])
 
         if len(queue.get_queue(chat_id)) >= config.QUEUE_LIMIT:
-            return await m.reply_text(m.lang["play_queue_full"].format(config.QUEUE_LIMIT))
+            return await m.reply_text(
+                m.lang["play_queue_full"].format(config.QUEUE_LIMIT)
+            )
 
         force = m.command[0].endswith("force") or (
             len(m.command) > 1 and "-f" in m.command[1]
@@ -69,7 +97,10 @@ def checkUB(play):
                         )
             except errors.ChatAdminRequired:
                 return await m.reply_text(m.lang["admin_required"])
-            except (errors.UserNotParticipant, errors.exceptions.bad_request_400.UserNotParticipant):
+            except (
+                errors.UserNotParticipant,
+                errors.exceptions.bad_request_400.UserNotParticipant,
+            ):
                 if m.chat.username:
                     invite_link = m.chat.username
                     try:
@@ -88,7 +119,9 @@ def checkUB(play):
                             m.lang["play_invite_error"].format(type(ex).__name__)
                         )
 
-                umm = await m.reply_text(m.lang["play_invite"].format(app.name))
+                umm = await m.reply_text(
+                    m.lang["play_invite"].format(app.name)
+                )
                 await asyncio.sleep(2)
                 try:
                     await client.join_chat(invite_link)
@@ -112,12 +145,6 @@ def checkUB(play):
 
                 await umm.delete()
                 await client.resolve_peer(chat_id)
-
-        if await db.get_cmd_delete(chat_id):
-            try:
-                await m.delete()
-            except Exception:
-                pass
 
         return await play(_, m, force, m3u8, video, url)
 
