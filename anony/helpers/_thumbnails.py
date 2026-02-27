@@ -143,24 +143,14 @@ class Thumbnail:
             except:
                 pass
 
-            # ===== TIME DISPLAY =====
-            current_time = "0:24"
+            # ===== END TIME (RIGHT SIDE ONLY) =====
             total_time = getattr(song, "duration", "3:25")
 
-            time_y = 395
+            time_y = 432  # aligned with progress bar
+            text_width = draw.textlength(total_time, font=FONTS["small"])
 
-            # Left time
             draw.text(
-                (panel_x + 40, time_y),
-                current_time,
-                fill=(220, 220, 220),
-                font=FONTS["small"],
-            )
-
-            # Right time (auto aligned)
-            total_width = draw.textlength(total_time, font=FONTS["small"])
-            draw.text(
-                (panel_x + panel_w - 40 - total_width, time_y),
+                (panel_x + panel_w - 45 - text_width, time_y),
                 total_time,
                 fill=(220, 220, 220),
                 font=FONTS["small"],
