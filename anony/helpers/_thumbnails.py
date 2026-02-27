@@ -39,17 +39,14 @@ async def fetch_image(url: str) -> Image.Image:
             r.raise_for_status()
             img = Image.open(BytesIO(r.content)).convert("RGBA")
 
-            # KEEP FULL IMAGE (NO HARSH CROP)
-            img.thumbnail((1280, 720), Image.Resampling.LANCZOS)
+            # FULL SCREEN COVER (NO BOX, NO BLACK PADDING)
+            img = ImageOps.fit(
+                img,
+                (1280, 720),
+                Image.Resampling.LANCZOS
+            )
 
-            background = Image.new("RGBA", (1280, 720), (0, 0, 0, 255))
-
-            x = (1280 - img.width) // 2
-            y = (720 - img.height) // 2
-
-            background.paste(img, (x, y))
-
-            return background
+            return img
 
         except:
             return Image.new("RGBA", (1280, 720), (25, 18, 18, 255))
@@ -65,14 +62,14 @@ class Thumbnail:
 
             width, height = 1280, 720
 
-            # ===== PREMIUM BLUR BACKGROUND (VISIBLE FULL IMAGE) =====
-            bg = thumb.resize((width, height), Image.Resampling.LANCZOS)
+            # ===== PREMIUM FULL BLUR BACKGROUND =====
+            bg = thumb.copy()
 
-            bg = bg.filter(ImageFilter.GaussianBlur(35))
-            bg = ImageEnhance.Brightness(bg).enhance(0.8)
+            bg = bg.filter(ImageFilter.GaussianBlur(15))
+            bg = ImageEnhance.Brightness(bg).enhance(1.0)
 
             dark_overlay = Image.new("RGBA", (width, height), (0, 0, 0, 30))
-            bg = Image.alpha_composite(bg.convert("RGBA"), dark_overlay)
+            bg = Image.alpha_composite(bg, dark_overlay)
 
             # ===== PANEL FRAME =====
             panel_x, panel_y = 305, 125
@@ -81,16 +78,16 @@ class Thumbnail:
 
             # ===== SHADOW =====
             shadow = Image.new("RGBA", (panel_w, panel_h), (0, 0, 0, 255))
-            shadow = shadow.filter(ImageFilter.GaussianBlur(40))
-            bg.paste(shadow, (panel_x + 15, panel_y + 25), shadow)
+            shadow = shadow.filter(ImageFilter.GaussianBlur(45))
+            bg.paste(shadow, (panel_x + 18, panel_y + 28), shadow)
 
             # ===== GLASS PANEL =====
-            glass = Image.new("RGBA", (panel_w, panel_h), (35, 35, 35, 200))
+            glass = Image.new("RGBA", (panel_w, panel_h), (35, 35, 35, 190))
             mask = Image.new("L", (panel_w, panel_h), 0)
 
             ImageDraw.Draw(mask).rounded_rectangle(
                 (0, 0, panel_w, panel_h),
-                radius=30,
+                radius=35,
                 fill=255,
             )
 
@@ -101,12 +98,16 @@ class Thumbnail:
 
             # ===== COVER =====
             cover = ImageOps.fit(
-                thumb, (184, 184), Image.Resampling.LANCZOS
+                thumb,
+                (184, 184),
+                Image.Resampling.LANCZOS
             )
 
             cover_mask = Image.new("L", (184, 184), 0)
             ImageDraw.Draw(cover_mask).rounded_rectangle(
-                (0, 0, 184, 184), radius=20, fill=255
+                (0, 0, 184, 184),
+                radius=25,
+                fill=255
             )
 
             cover.putalpha(cover_mask)
@@ -124,7 +125,7 @@ class Thumbnail:
             )
 
             draw.text(
-                (520, 250),
+                (520, 255),
                 artist,
                 fill=(210, 210, 210),
                 font=FONTS["artist"],
